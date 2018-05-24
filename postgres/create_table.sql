@@ -24,9 +24,11 @@ CREATE TABLE tasks (
     CONSTRAINT dup_task_run UNIQUE (task_id, run_id)
 );
 
-create index tasks_worker_id_group_idx on tasks (worker_id, worker_group) where worker_id is not null and worker_group is not null;
-create index tasks_only_worker_id_idx on tasks (worker_id) where worker_id is not null;
-
+CREATE INDEX tasks_worker_id_group_idx ON tasks (worker_id, worker_group) WHERE worker_id IS NOT null AND worker_group IS NOT null;
+CREATE INDEX tasks_only_worker_id_idx ON tasks (worker_id) WHERE worker_id IS NOT null;
+CREATE INDEX revision_idx ON tasks (revision DESC NULLS LAST);
+CREATE INDEX created_year_idx ON tasks (EXTRACT(YEAR FROM created));
+CREATE INDEX created_month_idx ON tasks (EXTRACT(MONTH FROM created));
 
 CREATE OR REPLACE FUNCTION update_modified_column()
 RETURNS TRIGGER AS $$
