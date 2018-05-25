@@ -1,0 +1,7 @@
+[postgres]
+dbname=CHANGEME
+host=CHANGEME
+port=CHANGEME
+user=CHANGEME
+password=CHANGEME
+sslmode=require

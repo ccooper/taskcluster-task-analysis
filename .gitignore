@@ -1,3 +1,6 @@
 .vagrant/
 build
 node_modules
+scripts/logs
+*.pyc
+scripts/database.ini
