@@ -26,6 +26,7 @@ CREATE TABLE tasks (
 
 CREATE INDEX tasks_worker_id_group_idx ON tasks (worker_id, worker_group) WHERE worker_id IS NOT null AND worker_group IS NOT null;
 CREATE INDEX tasks_only_worker_id_idx ON tasks (worker_id) WHERE worker_id IS NOT null;
+CREATE INDEX project_idx ON tasks (project DESC NULLS LAST);
 CREATE INDEX revision_idx ON tasks (revision DESC NULLS LAST);
 CREATE INDEX created_year_idx ON tasks (EXTRACT(YEAR FROM created));
 CREATE INDEX created_month_idx ON tasks (EXTRACT(MONTH FROM created));
@@ -66,3 +67,15 @@ $$;
 CREATE TRIGGER expire_delete_task_definitions_trigger
     AFTER INSERT ON cached_task_definitions
     EXECUTE PROCEDURE expire_old_task_definitions();
+
+CREATE TABLE worker_type_monthly_costs (
+    modified timestamp NOT NULL DEFAULT NOW(),
+    year int NOT NULL,
+    month int NOT NULL,
+    provider varchar(10),
+    provisioner varchar(32),
+    worker_type varchar(60),
+    usage_hours numeric(20,2),
+    cost numeric(20,2),
+    CONSTRAINT dup_worker_type UNIQUE (year, month, provider, provisioner, worker_type)
+);
