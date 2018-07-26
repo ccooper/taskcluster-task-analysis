@@ -78,6 +78,7 @@ def new_efficiency_worker_type():
     return worker_type
 
 
+@timeit
 def get_efficiency_factor(year, month):
     """The efficiency factor is a measure of the discrepancy between the total time reported for
     each worker type and the total time billed by AWS for that same worker type. This accounts
@@ -126,6 +127,7 @@ def get_efficiency_factor(year, month):
     return efficiency
 
 
+@timeit
 def get_num_pushes(branch, year, month):
     query = "SELECT COUNT(DISTINCT(revision)) \
              FROM tasks \
@@ -140,6 +142,7 @@ def get_num_pushes(branch, year, month):
         return 0
 
 
+@timeit
 def get_monthly_worker_type_costs(year, month):
     query = "SELECT provisioner, worker_type, usage_hours, cost \
              FROM worker_type_monthly_costs \
@@ -162,6 +165,7 @@ def get_monthly_worker_type_costs(year, month):
     return worker_type_costs
 
 
+@timeit
 def get_duration_per_worker_type(branch, year, month):
     query = "SELECT worker_type, SUM(duration/(1000*60*60)) \
              FROM tasks \
