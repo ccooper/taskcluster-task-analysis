@@ -107,14 +107,25 @@ def avg_duration(merges):
 
 @timeit
 def end_to_end(merges):
-    formatted_merges = "'" + "', '".join(merges) + "'"
-    query = "SELECT EXTRACT(EPOCH FROM (MAX(resolved)-MIN(started))) \
-            FROM tasks \
-            WHERE revision IN (%s) \
-            GROUP BY revision" % formatted_merges
-    cur.execute(query)
-    records = cur.fetchall()
-    e2e_secs = [record[0] for record in records]
+    e2e_secs = []
+    for cset in merges:
+        # All tasks are created when the initial decision task for a given changeset runs and the task
+        # graph is generated. We execute separate queries for each merge changeset because we want to
+        # exclude any tasks created AFTER that initial flurry. I've arbitrarily chosen a cutoff of
+        # 1 hour for this.
+        query = "SELECT EXTRACT(EPOCH FROM (MAX(resolved)-MIN(started))) \
+                FROM tasks \
+                WHERE revision = '%s' \
+                AND created < \
+                (SELECT MIN(created) + interval '1hr' FROM tasks WHERE revision = '%s') \
+                GROUP BY revision" % (cset, cset)
+        cur.execute(query)
+        records = cur.fetchone()
+        if records:
+            # print "# of tasks: %d" % records[0]
+            e2e_secs.append(records[0])
+        else:
+            pass
     # We want to convert our value in seconds to hours for display.
     return float(round(stats.hmean(e2e_secs)/60/60, 1))
 
@@ -192,7 +203,7 @@ if __name__ == '__main__':
     try:
         db_params = db_config()
         conn = psycopg2.connect(**db_params)
-    except:
+    except psycopg2.Error:
         print "I am unable to connect to the database"
         sys.exit(1)
 
