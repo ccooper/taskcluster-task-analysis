@@ -30,6 +30,8 @@ CREATE INDEX project_idx ON tasks (project DESC NULLS LAST);
 CREATE INDEX revision_idx ON tasks (revision DESC NULLS LAST);
 CREATE INDEX created_year_idx ON tasks (EXTRACT(YEAR FROM created));
 CREATE INDEX created_month_idx ON tasks (EXTRACT(MONTH FROM created));
+CREATE INDEX created_year_month_idx ON tasks (EXTRACT(YEAR FROM created), EXTRACT(MONTH FROM created));
+CREATE INDEX worker_type_idx ON tasks (worker_type) WHERE worker_type IS NOT NULL;
 
 CREATE OR REPLACE FUNCTION update_modified_column()
 RETURNS TRIGGER AS $$
