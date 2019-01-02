@@ -22,8 +22,8 @@
     "neutrino": "^8.3.0"
   },
   "scripts": {
-    "build": "neutrino build",
-    "test": "neutrino test",
+    "build": "neutrino build --use @neutrinojs/airbnb",
+    "test": "neutrino test --use @neutrinojs/airbnb",
     "postinstall": "yarn build",
     "start": "node . server",
     "startEventListener": "node . eventListener"
