@@ -4,3 +4,5 @@ node_modules
 scripts/logs
 *.pyc
 scripts/database.ini
+scripts/data
+scripts/.packet_token
