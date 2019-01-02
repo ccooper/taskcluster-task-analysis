@@ -5,6 +5,7 @@
   "main": "build/index.bundle.js",
   "dependencies": {
     "debug": "^4.1.1",
+    "eslint": "^5.11.1",
     "lodash": "^4.17.11",
     "neutrino": "^8.3.0",
     "neutrino-preset-taskcluster": "^4.0.0",
