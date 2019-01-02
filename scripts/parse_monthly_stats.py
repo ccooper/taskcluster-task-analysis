@@ -33,10 +33,11 @@ def extract_provisioner_from_worker_type(worker_type):
 if __name__ == '__main__':
     if len(sys.argv) == 1:
         sys.exit("Please pass in the path of the csv file to parse.")
+    filename = sys.argv[1]
 
-    parsed_month, parsed_year = get_month_year_from_filename(sys.argv[1])
+    parsed_month, parsed_year = get_month_year_from_filename(filename)
 
-    with open('worker_type_hours_cost_july2018.csv', 'rb') as csvfile:
+    with open(filename, 'rb') as csvfile:
         cost_data = csv.reader(csvfile, delimiter=',')
         rownum = 0
         colnum = 0
