@@ -30,15 +30,15 @@ def extract_provisioner_from_worker_type(worker_type):
     raise ValueError
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     if len(sys.argv) == 1:
         sys.exit("Please pass in the path of the csv file to parse.")
     filename = sys.argv[1]
 
     parsed_month, parsed_year = get_month_year_from_filename(filename)
 
-    with open(filename, 'rb') as csvfile:
-        cost_data = csv.reader(csvfile, delimiter=',')
+    with open(filename, "rb") as csvfile:
+        cost_data = csv.reader(csvfile, delimiter=",")
         rownum = 0
         colnum = 0
 
@@ -62,37 +62,45 @@ if __name__ == '__main__':
         if i == 0:
             continue
         # Figure out what the worker type is, and whether the value represents cost or hours
-        m = re.search('^(.*)\s*\(Hrs\)', worker_types[i])
+        m = re.search("^(.*)\s*\(Hrs\)", worker_types[i])
         if m:
             provisioner, worker_type = extract_provisioner_from_worker_type(m.group(1))
-            if re.search('Total usage', worker_type):
-                worker_type = 'Total'
+            if re.search("Total usage", worker_type):
+                worker_type = "Total"
             if provisioner not in worker_type_costs:
                 worker_type_costs[provisioner] = {}
             if worker_type not in worker_type_costs[provisioner]:
                 worker_type_costs[provisioner][worker_type] = {}
-            worker_type_costs[provisioner][worker_type]['hours'] = values[i]
+            worker_type_costs[provisioner][worker_type]["hours"] = values[i]
             continue
-        m = re.search('^(.*)\(\$\)', worker_types[i])
+        m = re.search("^(.*)\(\$\)", worker_types[i])
         if m:
             provisioner, worker_type = extract_provisioner_from_worker_type(m.group(1))
-            if re.search('Total cost', worker_type):
-                worker_type = 'Total'
+            if re.search("Total cost", worker_type):
+                worker_type = "Total"
             if provisioner not in worker_type_costs:
                 worker_type_costs[provisioner] = {}
             if worker_type not in worker_type_costs[provisioner]:
                 worker_type_costs[provisioner][worker_type] = {}
-            worker_type_costs[provisioner][worker_type]['cost'] = values[i]
+            worker_type_costs[provisioner][worker_type]["cost"] = values[i]
             continue
 
     for provisioner in worker_type_costs:
         for worker_type in worker_type_costs[provisioner]:
             coopthing = worker_type_costs[provisioner][worker_type]
-            if 'hours' in coopthing and 'cost' in coopthing:
-                print "INSERT INTO worker_type_monthly_costs \
+            if "hours" in coopthing and "cost" in coopthing:
+                print(
+                    "INSERT INTO worker_type_monthly_costs \
                         (year, month, provider, provisioner, worker_type, usage_hours, cost) \
-                        VALUES (%d, %d, 'aws', '%s', '%s', %.2f, %.2f);" % \
-                        (parsed_year, parsed_month, provisioner, worker_type,
-                         float(coopthing['hours']), float(coopthing['cost']))
+                        VALUES (%d, %d, 'aws', '%s', '%s', %.2f, %.2f);"
+                    % (
+                        parsed_year,
+                        parsed_month,
+                        provisioner,
+                        worker_type,
+                        float(coopthing["hours"]),
+                        float(coopthing["cost"]),
+                    )
+                )
             else:
-                print worker_type + " missing an expected key"
+                print(worker_type + " missing an expected key")
