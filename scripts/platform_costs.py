@@ -14,6 +14,7 @@ import sys
 from datetime import datetime
 from db_config import db_config
 from psycopg2 import extras
+from shared import timeit
 
 instance_type_query = {
     "TimePeriod": {"Start": "", "End": ""},
@@ -32,6 +33,18 @@ worker_type_query = {
     "Metrics": ["UnblendedCost", "UsageQuantity"],
     "GroupBy": [{"Type": "TAG", "Key": "WorkerType"}],
 }
+
+
+buckets = [
+    ("Linux64", ["linux64"]),
+    ("Linux32", ["linux32"]),
+    ("OS X", ["osx"]),
+    ("Android", ["android", "Android"]),
+    ("Windows Server 2012", ["windows2012", "win2012"]),
+    ("Windows 7", ["windows7", "win7"]),
+    ("Windows 10", ["windows10", "win10"]),
+    ("b2g", ["mulet", "gaia", "b2g", "flame"]),
+]
 
 DATA_DIR = "./data"
 
@@ -64,18 +77,6 @@ def split_worker_key(key):
     return key.split("/", 2)
 
 
-buckets = [
-    ("Linux64", ["linux64"]),
-    ("Linux32", ["linux32"]),
-    ("OS X", ["osx"]),
-    ("Android", ["android", "Android"]),
-    ("Windows Server 2012", ["windows2012", "win2012"]),
-    ("Windows 7", ["windows7", "win7"]),
-    ("Windows 10", ["windows10", "win10"]),
-    ("b2g", ["mulet", "gaia", "b2g", "flame"]),
-]
-
-
 def get_bucket_for_db_platform(worker_type, db_platform):
     for bucket, matches in buckets:
         if any(match in db_platform for match in matches):
@@ -86,6 +87,7 @@ def get_bucket_for_db_platform(worker_type, db_platform):
     return "Other"
 
 
+@timeit
 def get_instance_types(json_file, startdate, enddate):
     instance_types = {}
     if os.path.exists(json_file):
@@ -112,6 +114,7 @@ def get_instance_types(json_file, startdate, enddate):
     return instance_types
 
 
+@timeit
 def get_worker_types(json_file, instance_types, startdate, enddate):
     worker_types = {}
     if os.path.exists(json_file):
@@ -150,6 +153,7 @@ def get_worker_types(json_file, instance_types, startdate, enddate):
     return worker_types, instance_types
 
 
+@timeit
 def get_worker_type_durations(json_file, year, month):
     worker_type_durations = {}
     if os.path.exists(json_file):
@@ -427,7 +431,7 @@ if __name__ == "__main__":
                 )
             )
         print("")
-    pp.pprint(output)
+    # pp.pprint(output)
 
     # Double-check cost per platform bucket
     # cost_check = 0

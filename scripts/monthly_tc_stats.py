@@ -6,12 +6,12 @@ import os
 import psycopg2
 import requests
 import sys
-import time
 
 from db_config import db_config
 from datetime import datetime, timedelta
 from psycopg2 import extras
 from scipy import stats
+from shared import timeit
 
 REPO = "mozilla-central"
 PUSHES_DIR = "logs"
@@ -19,22 +19,6 @@ PUSHES_DIR = "logs"
 HASHTAGS = ["#Mozilla", "#ContinuousIntegration", "#Taskcluster"]
 
 psycopg2.extensions.set_wait_callback(extras.wait_select)
-
-
-def timeit(method):
-    def timed(*args, **kw):
-        ts = time.time()
-        result = method(*args, **kw)
-        te = time.time()
-
-        if "log_time" in kw:
-            name = kw.get("log_name", method.__name__.upper())
-            kw["log_time"][name] = int((te - ts) * 1000)
-        else:
-            print("%r  %2.2f s" % (method.__name__, (te - ts)))
-        return result
-
-    return timed
 
 
 def download_push_data(url, localfile):
@@ -188,12 +172,25 @@ def unique_workers_per_month(year, month):
         return 0
 
 
-def format_numtasks_tweet(first_day, num_tasks, compute_years, num_workers):
-    tweet = "Firefox CI in %s: %s tasks; %.1f compute years; %s unique workers" % (
+@timeit
+def concurrent_tasks_per_month(year, month):
+    ct_file = "logs/concurrent_tasks_%s-%s.json" % (year, month)
+    concurrent_tasks_by_day = {}
+    if os.path.exists(ct_file):
+        with open(ct_file) as ct:
+            concurrent_tasks_by_day = json.load(ct)
+    else:
+        return 0
+    return max(j for day in concurrent_tasks_by_day for i, j in concurrent_tasks_by_day[day])
+
+
+def format_numtasks_tweet(first_day, num_tasks, compute_years, num_workers, concurrent_tasks):
+    tweet = "Firefox CI in %s: %s tasks; %.1f compute years; %s unique workers; %s maximum concurrent tasks" % (
         first_day.strftime("%B %Y"),
         "{:,}".format(int(num_tasks)),
         compute_years,
         "{:,}".format(int(num_workers)),
+        "{:,}".format(int(concurrent_tasks)),
     )
     for hashtag in HASHTAGS:
         tweet += " " + hashtag
@@ -255,9 +252,10 @@ if __name__ == "__main__":
     num_tasks = tasks_per_month(year, month)
     compute_years = compute_years_per_month(year, month)
     num_workers = unique_workers_per_month(year, month)
+    concurrent_tasks = concurrent_tasks_per_month(year, month)
 
     cur.close()
     conn.close()
 
-    print(format_numtasks_tweet(first_day, num_tasks, compute_years, num_workers))
+    print(format_numtasks_tweet(first_day, num_tasks, compute_years, num_workers, concurrent_tasks))
     print(format_endtoend_tweet(first_day, end_to_end_time))

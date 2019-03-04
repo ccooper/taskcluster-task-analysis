@@ -28,26 +28,10 @@ import simplejson as json
 import os
 import psycopg2
 import sys
-import time
 
 from db_config import db_config
 from psycopg2 import extras
-
-
-def timeit(method):
-    def timed(*args, **kw):
-        ts = time.time()
-        result = method(*args, **kw)
-        te = time.time()
-
-        if "log_time" in kw:
-            name = kw.get("log_name", method.__name__.upper())
-            kw["log_time"][name] = int((te - ts) * 1000)
-        else:
-            print("%r  %2.2f s" % (method.__name__, (te - ts)))
-        return result
-
-    return timed
+from shared import timeit
 
 
 def open_connection():
@@ -57,8 +41,8 @@ def open_connection():
         conn = psycopg2.connect(**db_params)
         cur = conn.cursor()
         return conn, cur
-    except:
-        print("I am unable to connect to the database")
+    except psycopg2.DatabaseError as error:
+        print("Unable to connect to database: %s" % error)
         sys.exit(1)
 
 
@@ -229,14 +213,15 @@ if __name__ == "__main__":
         print("ERROR: unable to parse month")
         sys.exit(1)
 
-    # The main db query can be expensiv, so try to use
+    # The main db query can be expensive, so try to use
     # cached data if we've run with these params before.
     cost_json_file = "logs/cost-%s-%d-%02d.json" % (branch, year, month)
     data = {}
     try:
         with open(cost_json_file) as f:
             data = json.load(f)
-    except:
+    except IOError:
+        # The file may not exist, but this isn't fatal.
         pass
 
     efficiency_json_file = "logs/efficiency-%d-%02d.json" % (year, month)
@@ -244,7 +229,8 @@ if __name__ == "__main__":
     try:
         with open(efficiency_json_file) as f:
             efficiency = json.load(f)
-    except:
+    except IOError:
+        # The file may not exist, but this isn't fatal.
         pass
 
     conn = None
