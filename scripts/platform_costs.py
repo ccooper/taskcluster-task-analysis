@@ -39,7 +39,7 @@ buckets = [
     ("Linux64", ["linux64"]),
     ("Linux32", ["linux32"]),
     ("OS X", ["osx"]),
-    ("Android", ["android", "Android"]),
+    ("Android", ["android", "Android", "mobile"]),
     ("Windows Server 2012", ["windows2012", "win2012"]),
     ("Windows 7", ["windows7", "win7"]),
     ("Windows 10", ["windows10", "win10"]),
