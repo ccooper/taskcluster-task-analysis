@@ -185,7 +185,10 @@ def get_worker_type_durations(json_file, year, month):
                 worker_type = record[0]
                 platform = record[1]
                 if not platform:
-                    platform = "None"
+                    if worker_type.endswith("andrcmp"):
+                        platform = "Components"
+                    else:
+                        platform = "None"
                 duration_ms = record[2]
                 if worker_type not in worker_type_durations:
                     worker_type_durations[worker_type] = {}
@@ -197,6 +200,47 @@ def get_worker_type_durations(json_file, year, month):
         conn.close()
 
     return worker_type_durations
+
+
+@timeit
+def generate_csv_output(platform_buckets, use_header=False):
+    output = []
+    csv_header = [
+        "Bucket",
+        "Worker Type",
+        "Platform" "Cost ($)",
+        "Duration (msecs)",
+        "Duration (hours)",
+        "Year",
+        "Month",
+        "YYYY-MM"
+    ]
+    if use_header:
+        output.append(csv_header)
+    for bucket in sorted(
+        platform_buckets,
+        key=lambda x: (platform_buckets[x]["bucket_cost"]),
+        reverse=True):
+        for worker_type in sorted(
+            platform_buckets[bucket]["worker_types"],
+            key=lambda y: (platform_buckets[bucket]["worker_types"][y]["cost"]),
+            reverse=True):
+            for p in platform_buckets[bucket]["worker_types"][worker_type]["platforms"]:
+                if p != "total":
+                    output.append(
+                        [
+                            bucket,
+                            worker_type,
+                            p,
+                            platform_buckets[bucket]["worker_types"][worker_type]["platforms"][p]["cost"],
+                            platform_buckets[bucket]["worker_types"][worker_type]["platforms"][p]["msecs"],
+                            round(float(platform_buckets[bucket]["worker_types"][worker_type]["platforms"][p]["msecs"] / 1000 / 60 / 60), 2),
+                            year,
+                            month,
+                            '{0:d}-{1:02d}'.format(year, month)
+                        ]
+                    )
+    return output
 
 
 if __name__ == "__main__":
@@ -213,6 +257,14 @@ if __name__ == "__main__":
         type=str,
         help="End date for query, format: YYYY-MM-DD",
     )
+    parser.add_argument(
+        "-v", "--verbose",
+        dest="verbose",
+        action="store_true",
+        help="Display verbose output (default:False)"
+    )
+    parser.set_defaults(verbose=False)
+
     args = parser.parse_args()
     if not is_valid_date(args.startdate):
         parser.print_help(sys.stderr)
@@ -329,118 +381,95 @@ if __name__ == "__main__":
             ] += platform_cost
             platform_buckets[bucket]["bucket_cost"] += platform_cost
 
-    header = [
-        "Bucket",
-        "Worker Type",
-        "Platform" "Cost ($)",
-        "Duration (msecs)",
-        "Year",
-        "Month",
-    ]
-    output = []
-    print("Platforms sorted by cost")
-    print("========================")
-    for bucket in sorted(
-        platform_buckets,
-        key=lambda x: (platform_buckets[x]["bucket_cost"]),
-        reverse=True,
-    ):
-        print(
-            "{0:<25s} ${1:>15,.2f}".format(
-                bucket + ":", float(platform_buckets[bucket]["bucket_cost"])
-            )
-        )
-        for worker_type in sorted(
-            platform_buckets[bucket]["worker_types"],
-            key=lambda y: (platform_buckets[bucket]["worker_types"][y]["cost"]),
+    output = generate_csv_output(platform_buckets)
+
+    if args.verbose:
+        print("Platforms sorted by cost")
+        print("========================")
+        for bucket in sorted(
+            platform_buckets,
+            key=lambda x: (platform_buckets[x]["bucket_cost"]),
             reverse=True,
         ):
             print(
-                "\t{0:<25s} ${1:>15,.2f} (platforms: {2})".format(
-                    worker_type + ":",
-                    float(
-                        platform_buckets[bucket]["worker_types"][worker_type]["cost"]
-                    ),
-                    ", ".join(
-                        [
-                            p
-                            for p in platform_buckets[bucket]["worker_types"][
-                                worker_type
-                            ]["platforms"]
-                            if p != "total"
-                        ]
-                    ),
+                "{0:<25s} ${1:>15,.2f}".format(
+                    bucket + ":", float(platform_buckets[bucket]["bucket_cost"])
                 )
             )
-            for p in platform_buckets[bucket]["worker_types"][worker_type]["platforms"]:
-                if p != "total":
-                    output.append(
-                        [
-                            bucket,
-                            worker_type,
-                            p,
-                            platform_buckets[bucket]["worker_types"][worker_type][
-                                "platforms"
-                            ][p]["cost"],
-                            platform_buckets[bucket]["worker_types"][worker_type][
-                                "platforms"
-                            ][p]["msecs"],
-                            year,
-                            month,
-                        ]
+            for worker_type in sorted(
+                platform_buckets[bucket]["worker_types"],
+                key=lambda y: (platform_buckets[bucket]["worker_types"][y]["cost"]),
+                reverse=True,
+            ):
+                print(
+                    "\t{0:<25s} ${1:>15,.2f} (platforms: {2})".format(
+                        worker_type + ":",
+                        float(
+                            platform_buckets[bucket]["worker_types"][worker_type]["cost"]
+                        ),
+                        ", ".join(
+                            [
+                                p
+                                for p in platform_buckets[bucket]["worker_types"][
+                                    worker_type
+                                ]["platforms"]
+                                if p != "total"
+                            ]
+                        ),
                     )
+                )
+            print("")
 
-        print("")
-
-    print("Platforms sorted by time")
-    print("========================")
-    for bucket in sorted(
-        platform_buckets,
-        key=lambda x: (platform_buckets[x]["bucket_msecs"]),
-        reverse=True,
-    ):
-        print(
-            "{0:<25s} {1:>15,.2f} hrs".format(
-                bucket + ":",
-                float(platform_buckets[bucket]["bucket_msecs"] / 1000 / 60 / 60),
-            )
-        )
-        for worker_type in sorted(
-            platform_buckets[bucket]["worker_types"],
-            key=lambda y: (platform_buckets[bucket]["worker_types"][y]["msecs"]),
+        print("Platforms sorted by time")
+        print("========================")
+        for bucket in sorted(
+            platform_buckets,
+            key=lambda x: (platform_buckets[x]["bucket_msecs"]),
             reverse=True,
         ):
             print(
-                "\t{0:<25s} {1:>15,.2f} hrs (platforms: {2})".format(
-                    worker_type + ":",
-                    float(
-                        platform_buckets[bucket]["worker_types"][worker_type]["msecs"]
-                        / 1000
-                        / 60
-                        / 60
-                    ),
-                    ", ".join(
-                        [
-                            p
-                            for p in platform_buckets[bucket]["worker_types"][
-                                worker_type
-                            ]["platforms"]
-                            if p != "total"
-                        ]
-                    ),
+                "{0:<25s} {1:>15,.2f} hrs".format(
+                    bucket + ":",
+                    float(platform_buckets[bucket]["bucket_msecs"] / 1000 / 60 / 60),
                 )
             )
-        print("")
-    # pp.pprint(output)
+            for worker_type in sorted(
+                platform_buckets[bucket]["worker_types"],
+                key=lambda y: (platform_buckets[bucket]["worker_types"][y]["msecs"]),
+                reverse=True,
+            ):
+                print(
+                    "\t{0:<25s} {1:>15,.2f} hrs (platforms: {2})".format(
+                        worker_type + ":",
+                        float(
+                            platform_buckets[bucket]["worker_types"][worker_type]["msecs"]
+                            / 1000
+                            / 60
+                            / 60
+                        ),
+                        ", ".join(
+                            [
+                                p
+                                for p in platform_buckets[bucket]["worker_types"][
+                                    worker_type
+                                ]["platforms"]
+                                if p != "total"
+                            ]
+                        ),
+                    )
+                )
+            print("")
+        # pp.pprint(output)
 
-    # Double-check cost per platform bucket
-    # cost_check = 0
-    # for worker_type in platform_buckets['windows7']['worker_types']:
-    #     for platform in platform_buckets['windows7']['worker_types'][worker_type]['platforms']:
-    #         cost_check += platform_buckets['windows7']['worker_types'][worker_type]['platforms'][platform]['cost']
-    # print(platform_buckets['windows7']['bucket_cost'], cost_check)
+        # Double-check cost per platform bucket
+        # cost_check = 0
+        # for worker_type in platform_buckets['windows7']['worker_types']:
+        #     for platform in platform_buckets['windows7']['worker_types'][worker_type]['platforms']:
+        #         cost_check += platform_buckets['windows7']['worker_types'][worker_type]['platforms'][platform]['cost']
+        # print(platform_buckets['windows7']['bucket_cost'], cost_check)
 
-    # pp.pprint(platform_buckets)
+        # pp.pprint(platform_buckets)
+
     csv_filename = os.path.join(
         DATA_DIR, "platform_costs_{}-{:0>2}.csv".format(year, month)
     )
