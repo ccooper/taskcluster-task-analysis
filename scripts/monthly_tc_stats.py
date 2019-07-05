@@ -102,6 +102,7 @@ def end_to_end(merges):
             "SELECT EXTRACT(EPOCH FROM (MAX(resolved)-MIN(started))) \
                 FROM tasks \
                 WHERE revision = '%s' \
+                AND state != 'exception' \
                 AND created < \
                 (SELECT MIN(created) + interval '1hr' FROM tasks WHERE revision = '%s') \
                 GROUP BY revision"
