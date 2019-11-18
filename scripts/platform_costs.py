@@ -70,6 +70,8 @@ def is_valid_date(in_date):
 
 def split_worker_key(key):
     key = re.sub(r"^WorkerType\$", "", key)
+    # Name is the new tag we use, so strip both prefixes.
+    key = re.sub(r"^Name\$", "", key)
     if key == "":
         return "None", "None"
     if key.find("/") == -1:
@@ -154,6 +156,50 @@ def get_worker_types(json_file, instance_types, startdate, enddate):
 
 
 @timeit
+def get_worker_types_transitional(worker_types, instance_types, startdate, enddate):
+    """
+    In late October 2019, we changed how instances were provisioned as part of a
+    redeploying Taskcluster. The WorkerType tag was abandoned in favor of the Name
+    tag. The old method of provisioning wasn't disabled until early November 2019,
+    so for October/November 2019, we need to support both instance tagging methods
+    in cost look-ups.
+    """
+    worker_type_query["TimePeriod"]["Start"] = args.startdate
+    worker_type_query["TimePeriod"]["End"] = args.enddate
+    worker_type_query["GroupBy"] = [{"Type": "TAG", "Key": "Name"}]
+    client = boto3.client("ce")
+    for instance_type in instance_types:
+        current_worker_type_query = copy.deepcopy(worker_type_query)
+        current_worker_type_query["Filter"]["Dimensions"]["Values"].append(
+            instance_type
+        )
+
+        response = client.get_cost_and_usage(**current_worker_type_query)
+
+        if response and "ResultsByTime" in response:
+            for entry in response["ResultsByTime"][0]["Groups"]:
+                key = entry["Keys"][0]
+                provisioner, worker_type = split_worker_key(key)
+                if worker_type not in worker_types:
+                    worker_types[worker_type] = {"cost": 0, "hours": 0}
+                else:
+                    continue
+                worker_types[worker_type]["cost"] += float(
+                    entry["Metrics"]["UnblendedCost"]["Amount"]
+                )
+                worker_types[worker_type]["hours"] += float(
+                    entry["Metrics"]["UsageQuantity"]["Amount"]
+                )
+                instance_types[instance_type]["worker_types"][worker_type] = {
+                    "provisioner": provisioner,
+                    "cost": entry["Metrics"]["UnblendedCost"]["Amount"],
+                    "hours": entry["Metrics"]["UsageQuantity"]["Amount"],
+                }
+
+    return worker_types, instance_types
+
+
+@timeit
 def get_worker_type_durations(json_file, year, month):
     worker_type_durations = {}
     if os.path.exists(json_file):
@@ -173,7 +219,40 @@ def get_worker_type_durations(json_file, year, month):
             "SELECT worker_type, platform, SUM(duration) AS total_time \
                 FROM tasks \
                 WHERE DATE_PART('year', created) = %d AND DATE_PART('month', created) = %d \
-                AND provisioner = 'aws-provisioner-v1' \
+                AND provisioner IN ( \
+                  'app-services-1', \
+                  'app-services-3', \
+                  'aws-provisioner-v1', \
+                  'ci-1',\
+                  'comm-1', \
+                  'comm-3', \
+                  'comm-t', \
+                  'gecko-1', \
+                  'gecko-2', \
+                  'gecko-3', \
+                  'gecko-t', \
+                  'mobile-1', \
+                  'mobile-3', \
+                  'mozillaonline-3', \
+                  'mpd001-3', \
+                  'nss-1', \
+                  'nss-3', \
+                  'infra', \
+                  'l10n-3', \
+                  'pmoore-test', \
+                  'project-relman', \
+                  'releng-3', \
+                  'releng-t', \
+                  'sandbox-1', \
+                  'scriptworker-prov-v1', \
+                  'taskcluster-imaging', \
+                  'taskgraph-1', \
+                  'taskgraph-3', \
+                  'taskgraph-t', \
+                  'xpi-1', \
+                  'xpi-3' \
+                ) \
+                AND started IS NOT NULL \
                 GROUP BY worker_type, platform \
                 ORDER BY worker_type ASC, platform ASC, total_time DESC"
             % (year, month)
@@ -208,23 +287,27 @@ def generate_csv_output(platform_buckets, use_header=False):
     csv_header = [
         "Bucket",
         "Worker Type",
-        "Platform" "Cost ($)",
+        "Platform",
+        "Cost ($)",
         "Duration (msecs)",
         "Duration (hours)",
         "Year",
         "Month",
-        "YYYY-MM"
+        "YYYY-MM",
+        "Product",
+        "Provider",
+        "Worker Pool ID"
     ]
     if use_header:
         output.append(csv_header)
     for bucket in sorted(
-        platform_buckets,
-        key=lambda x: (platform_buckets[x]["bucket_cost"]),
-        reverse=True):
+          platform_buckets,
+          key=lambda x: (platform_buckets[x]["bucket_cost"]),
+          reverse=True):
         for worker_type in sorted(
-            platform_buckets[bucket]["worker_types"],
-            key=lambda y: (platform_buckets[bucket]["worker_types"][y]["cost"]),
-            reverse=True):
+              platform_buckets[bucket]["worker_types"],
+              key=lambda y: (platform_buckets[bucket]["worker_types"][y]["cost"]),
+              reverse=True):
             for p in platform_buckets[bucket]["worker_types"][worker_type]["platforms"]:
                 if p != "total":
                     output.append(
@@ -234,10 +317,15 @@ def generate_csv_output(platform_buckets, use_header=False):
                             p,
                             platform_buckets[bucket]["worker_types"][worker_type]["platforms"][p]["cost"],
                             platform_buckets[bucket]["worker_types"][worker_type]["platforms"][p]["msecs"],
-                            round(float(platform_buckets[bucket]["worker_types"][worker_type]["platforms"][p]["msecs"] / 1000 / 60 / 60), 2),
+                            round(float(platform_buckets[bucket]["worker_types"][worker_type]["platforms"][p]["msecs"]
+                                        / 1000 / 60 / 60), 2),
                             year,
                             month,
-                            '{0:d}-{1:02d}'.format(year, month)
+                            # '{0:d}-{1:02d}'.format(year, month)
+                            '',
+                            '',
+                            '',
+
                         ]
                     )
     return output
@@ -298,6 +386,10 @@ if __name__ == "__main__":
     )
     worker_types, instance_types = get_worker_types(
         worker_types_file, instance_types, args.startdate, args.enddate
+    )
+    # See comment for get_worker_types_transitional()
+    worker_types, instance_types = get_worker_types_transitional(
+        worker_types, instance_types, args.startdate, args.enddate
     )
     worker_type_durations = get_worker_type_durations(
         worker_type_durations_file, year, month
