@@ -5,6 +5,7 @@ import calendar
 
 import json
 import os
+
 # import pprint
 import psycopg2
 import sys
@@ -69,10 +70,16 @@ if __name__ == "__main__":
     for working_date in daterange(first_day, last_day):
         single_date = str(working_date)
         if working_date > today:
-            print("[%s] Skipping %s because it hasn't happened yet" % (log_ts(), single_date))
+            print(
+                "[%s] Skipping %s because it hasn't happened yet"
+                % (log_ts(), single_date)
+            )
             continue
         if working_date == today:
-            print("[%s] Skipping %s because today isn't over yet." % (log_ts(), single_date))
+            print(
+                "[%s] Skipping %s because today isn't over yet."
+                % (log_ts(), single_date)
+            )
             continue
         print("[%s] Processing %s..." % (log_ts(), single_date))
         if single_date not in concurrent_tasks_by_day:
@@ -82,13 +89,19 @@ if __name__ == "__main__":
                 print("I am unable to connect to the database")
                 sys.exit(2)
             cur = conn.cursor()
-            concurrent_tasks_by_day[single_date] = get_concurrent_tasks_for_day(single_date)
+            concurrent_tasks_by_day[single_date] = get_concurrent_tasks_for_day(
+                single_date
+            )
             cur.close()
             conn.close()
             with open(localfile, "w") as ct:
-                json.dump(concurrent_tasks_by_day, ct, indent=4, sort_keys=True, default=str)
+                json.dump(
+                    concurrent_tasks_by_day, ct, indent=4, sort_keys=True, default=str
+                )
     # pp = pprint.PrettyPrinter(indent=4)
     # pp.pprint(concurrent_tasks_by_day)
     # m = max(max(concurrent_tasks_by_day[day][1])
-    m = max(j for day in concurrent_tasks_by_day for i, j in concurrent_tasks_by_day[day])
+    m = max(
+        j for day in concurrent_tasks_by_day for i, j in concurrent_tasks_by_day[day]
+    )
     print("Maximum concurrent tasks: %s" % "{:,}".format(int(m)))
