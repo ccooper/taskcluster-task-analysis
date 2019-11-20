@@ -2,38 +2,30 @@
   "name": "taskcluster-task-analysis",
   "version": "1.0.0",
   "description": "",
-  "main": "build/index.bundle.js",
+  "engine-strict": true,
+  "engines": {
+    "node": "10.16.3",
+    "yarn": "^1.0.0"
+  },
   "dependencies": {
     "debug": "^2.3.3",
     "lodash": "^4.17.2",
-    "neutrino": "^3.0.0",
-    "neutrino-preset-taskcluster": "^2.0.0",
     "parse-github-url": "^1.0.0",
     "pg": "^6.1.0",
-    "taskcluster-client": "^1.6.3",
+    "taskcluster-client": "^23.0.0",
     "taskcluster-lib-api": "^3.2.2",
     "taskcluster-lib-app": "^1.0.0",
     "taskcluster-lib-loader": "^1.1.0",
-    "taskcluster-lib-monitor": "^4.3.3",
+    "taskcluster-lib-monitor": "^11.1.1",
+    "taskcluster-lib-pulse": "^11.1.1",
     "taskcluster-lib-validate": "^2.1.0",
     "typed-env-config": "^1.1.0"
   },
-  "devDependencies": {
-    "neutrino": "^3.0.0",
-    "neutrino-preset-taskcluster": "^2.0.0"
-  },
-  "config": {
-    "preset": "neutrino-preset-taskcluster"
-  },
+  "devDependencies": {},
   "scripts": {
-    "build": "neutrino build",
-    "test": "neutrino test",
-    "postinstall": "yarn build",
-    "start": "node . server",
-    "startEventListener": "node . eventListener",
-    "heroku-postbuild": "echo Skip build on Heroku"
+    "start": "node src/index server",
+    "startEventListener": "node src/index eventListener"
   },
   "author": "",
-  "license": "ISC",
-  "heroku-run-build-script": true
+  "license": "ISC"
 }

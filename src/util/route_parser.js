@@ -6,7 +6,7 @@
 // [3] Top level revision for the push
 // [4] Pull Request ID (github) or Push Log ID (hg.mozilla.org) of the push
 //     Note: pushes ot a branch on github would not have a PR ID
-export default function parseRoute(route) {
+function parseRoute(route) {
   let project, revision, revision_hash, pushId, version, owner, parsedProject;
   let parsedRoute = route.split('.');
   // Assume it's a version 1 routing key
@@ -64,3 +64,5 @@ export default function parseRoute(route) {
 
   return x;
 }
+
+module.exports = parseRoute;

@@ -1,5 +1,5 @@
-import parseRoute from './util/route_parser';
-import parseGithubUrl from 'parse-github-url';
+const parseRoute = require('./util/route_parser');
+const parseGithubUrl = require('parse-github-url');
 
 const DEFAULT_SOURCE = {
   origin: undefined,
@@ -72,7 +72,7 @@ function parseRouteInfo(task) {
   return parsedRoute;
 }
 
-export class Task {
+class Task {
   constructor(pulseMessage, taskStatus) {
     this.taskStatus = taskStatus;
     this.routes = pulseMessage.routes || [];
@@ -124,3 +124,5 @@ export class Task {
     }
   }
 }
+
+module.exports = {Task};

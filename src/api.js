@@ -1,4 +1,4 @@
-import API from 'taskcluster-lib-api';
+const API = require('taskcluster-lib-api');
 
 let api = new API({
   title:        'TaskCluster Task Analysis Documentation',
