@@ -3,6 +3,8 @@ defaults:
     credentials:
       username: !env PULSE_USERNAME
       password: !env PULSE_PASSWORD
+      hostname: pulse.mozilla.org
+      vhost: '/'
     prefetch:   20
     queueName:  'taskcluster-task-analysis'
   postgresql: !env DATABASE_URL

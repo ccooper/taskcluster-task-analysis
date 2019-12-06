@@ -1,13 +1,15 @@
-import Debug from 'debug';
-import path from 'path';
-import pg from 'pg';
-import config from 'typed-env-config';
-import loader from 'taskcluster-lib-loader';
-import taskcluster from 'taskcluster-client';
-import {Handler} from './handler';
-import api from './api';
-import validator from 'taskcluster-lib-validate';
-import App from 'taskcluster-lib-app';
+const Debug = require('debug');
+const path = require('path');
+const pg = require('pg');
+const config = require('typed-env-config');
+const loader = require('taskcluster-lib-loader');
+const taskcluster = require('taskcluster-client');
+const {Handler} = require('./handler');
+const api = require('./api');
+const validator = require('taskcluster-lib-validate');
+const App = require('taskcluster-lib-app');
+const {Client, pulseCredentials} = require('taskcluster-lib-pulse');
+const monitor = require('taskcluster-lib-monitor');
 
 let debug = Debug('taskcluster-analysis:main');
 
@@ -25,27 +27,22 @@ let load = loader({
     }),
   },
 
-  listener: {
-    requires: ['cfg'],
-    setup: async ({cfg}) => {
-      let queueEvents = new taskcluster.QueueEvents();
-      let routingPattern = `#`;
-      let listener = new taskcluster.PulseListener({
-        credentials: cfg.pulse.credentials,
-        queueName: cfg.pulse.queueName,
-        prefetch: cfg.pulse.prefetch,
-        hostname: cfg.pulse.hostname,
+  monitor: {
+    requires: ['process', 'profile', 'cfg'],
+    setup: async ({process, profile, cfg}) => await monitor({
+      projectName: 'taskcluster-task-analysis',
+      mock: true,
+    }),
+  },
+
+  pulseClient: {
+    requires: ['cfg', 'monitor'],
+    setup: ({cfg, monitor}) => {
+      return new Client({
+        namespace: 'taskcluster-task-analysis',
+        monitor: monitor.prefix('pulse-client'),
+        credentials: pulseCredentials(cfg.pulse.credentials),
       });
-
-      await Promise.all([
-        listener.bind(queueEvents.taskPending(routingPattern)),
-        listener.bind(queueEvents.taskRunning(routingPattern)),
-        listener.bind(queueEvents.taskCompleted(routingPattern)),
-        listener.bind(queueEvents.taskFailed(routingPattern)),
-        listener.bind(queueEvents.taskException(routingPattern)),
-      ]);
-
-      return listener;
     },
   },
 
@@ -63,13 +60,16 @@ let load = loader({
   },
 
   eventListener: {
-    requires: ['cfg', 'listener', 'db'],
-    setup: async ({cfg, listener, db}) => {
-      let queue = new taskcluster.Queue();
+    requires: ['cfg', 'pulseClient', 'db'],
+    setup: async ({cfg, pulseClient, db}) => {
+      let queue = new taskcluster.Queue({
+        rootUrl: process.env.TASKCLUSTER_ROOT_URL,
+      });
 
       let handler = new Handler({
         queue,
-        listener,
+        pulseClient,
+        taskQueueName: cfg.pulse.queueName,
         db,
       });
       handler.start();

@@ -1,9 +1,12 @@
-import Debug from 'debug';
-import taskcluster from 'taskcluster-client';
-import _ from 'lodash';
-import {Task} from './task';
+const Debug = require('debug');
+const taskcluster = require('taskcluster-client');
+const _ = require('lodash');
+const {Task} = require('./task');
+const {consume} = require('taskcluster-lib-pulse');
 
-let events = new taskcluster.QueueEvents();
+let events = new taskcluster.QueueEvents({
+  rootUrl: process.env.TASKCLUSTER_ROOT_URL,
+});
 let debug = Debug('task-analysis:handler');
 
 const EVENT_MAP = {
@@ -14,31 +17,30 @@ const EVENT_MAP = {
   [events.taskException().exchange]: 'exception',
 };
 
-export class Handler {
+
+class Handler {
   constructor(options) {
     this.queue = options.queue;
-    this.listener = options.listener;
+    this.pulseClient = options.pulseClient;
     this.db = options.db;
+    this.taskQueueName = options.taskQueueName;
   }
 
   async start() {
     debug('Starting handler');
 
-    this.listener.on('message', async (message) => {
-      try {
-        await this.handleMessage(message);
-      } catch (err) {
-        console.log(
-          `Error caught when processing message. ` +
-          `Message: ${JSON.stringify(message, null, 2)} Stack: ${err.stack}`
-        );
-      };
-    });
-    this.listener.on('error', (error) => {
-      console.log(`Error encountered with pulse listener. ${error.stack}`);
-      process.exit();
-    });
-    await this.listener.resume();
+    let routingPattern = `#`;
+    await consume({
+      client: this.pulseClient,
+      bindings: [
+        events.taskPending(routingPattern),
+        events.taskRunning(routingPattern),
+        events.taskCompleted(routingPattern),
+        events.taskFailed(routingPattern),
+        events.taskException(routingPattern),
+      ],
+      queueName: this.taskQueueName,
+    }, this.handleMessage.bind(this));
     debug('Started Handler');
   }
 
@@ -287,3 +289,5 @@ export class Handler {
     return;
   }
 }
+
+module.exports = {Handler};

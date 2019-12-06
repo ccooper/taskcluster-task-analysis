@@ -2,8 +2,13 @@
   "name": "taskcluster-task-analysis",
   "version": "1.0.0",
   "description": "",
-  "main": "build/index.bundle.js",
+  "engine-strict": true,
+  "engines": {
+    "node": "10.16.3",
+    "yarn": "^1.0.0"
+  },
   "dependencies": {
+<<<<<<< HEAD
     "@neutrinojs/airbnb": "^8.3.0",
     "debug": "^4.1.1",
     "lodash": "^4.17.11",
@@ -27,6 +32,25 @@
     "postinstall": "yarn build",
     "start": "node . server",
     "startEventListener": "node . eventListener"
+=======
+    "debug": "^2.3.3",
+    "lodash": "^4.17.2",
+    "parse-github-url": "^1.0.0",
+    "pg": "^6.1.0",
+    "taskcluster-client": "^23.0.0",
+    "taskcluster-lib-api": "^3.2.2",
+    "taskcluster-lib-app": "^1.0.0",
+    "taskcluster-lib-loader": "^1.1.0",
+    "taskcluster-lib-monitor": "^11.1.1",
+    "taskcluster-lib-pulse": "^11.1.1",
+    "taskcluster-lib-validate": "^2.1.0",
+    "typed-env-config": "^1.1.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "start": "node src/index server",
+    "startEventListener": "node src/index eventListener"
+>>>>>>> upstream/master
   },
   "author": "",
   "license": "ISC"
